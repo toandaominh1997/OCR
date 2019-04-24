@@ -110,7 +110,7 @@ def train_transforms(height):
                 ],
                 p=0.15),
 
-            transforms.RandomAffine(degrees=5, scale=(0.9, 1.1), shear=5, resample=Image.NEAREST),
+            transforms.RandomAffine(degrees=5, scale=(0.9, 1.1), shear=5, resample=Image.NEAREST, fillcolor=255),
             ResizeImage(height),
             transforms.ToTensor()
         ])
@@ -485,7 +485,7 @@ def valid():
             accBC += by_char(sim_preds, target)
         print('Test-Loss: {}, accBF: {}, accBC: {}'.format(total_loss/len(test_loader), accBF/len(test_loader), accBC/len(test_loader)))
 
-epochs = 50
+epochs = 100
 
 for epoch in range(1, epochs):
     accBF = 0.0
