@@ -185,8 +185,8 @@ class alignCollate(object):
 train_transform = train_transforms(height=48)
 test_transform = test_transforms(height=48)
 
-train_dataset = lmdbDataset(root='../input/iam/IAM', label='valid-labels.json', transform=train_transform)
-test_dataset = lmdbDataset(root='../input/iam/IAM', label='train-labels.json', transform=test_transform)
+train_dataset = lmdbDataset(root='../input/iam/IAM', label='train-labels.json', transform=train_transform)
+test_dataset = lmdbDataset(root='../input/iam/IAM', label='valid-labels.json', transform=test_transform)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=int(10), collate_fn=alignCollate())
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=int(10), collate_fn=alignCollate())
@@ -492,6 +492,8 @@ for epoch in range(1, epochs):
     accBC = 0.0
     total_loss = 0
     model.train()
+    start = time.time()
+    _start = time.time()
     for idx, (data, target) in enumerate(train_loader):
         data, target = data.cuda(), target
         batch_size = data.size(0)
@@ -508,9 +510,9 @@ for epoch in range(1, epochs):
         sim_preds = converter.decode(output.data, output_size.data, raw=False)
         accBF += by_field(sim_preds, target)
         accBC += by_char(sim_preds, target)
-        print(len(train_loader))
         if((idx+1)%1000==0):
-            print(('Index: {}/{}, Loss: {}'.format(idx, len(train_loader), total_loss/idx)))    
-    print('Epoch: {}/{}, Loss: {}, accBF: {}, accBC: {}'.format(epoch, epochs, 
+            print(('Time: {}, Index: {}/{}, Loss: {}'.format(time.time()-_start, idx, len(train_loader), total_loss/idx)))
+            _start = time.time()    
+    print('Time: {}, Epoch: {}/{}, Loss: {}, accBF: {}, accBC: {}'.format(time.time()-start, epoch, epochs, 
                         total_loss/len(train_loader), accBF/len(train_loader), accBC/len(train_loader)))
     valid()
