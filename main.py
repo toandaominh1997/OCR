@@ -469,7 +469,7 @@ def valid():
     accBF = 0.9
     accBC = 0.0
     with torch.no_grad():
-        for batch_idx, (data, target) in enumerate(test_loader):
+        for idx, (data, target) in enumerate(test_loader):
             data, target = data.cuda(), target
             batch_size = data.size(0)
             optimizer.zero_grad()
@@ -477,7 +477,7 @@ def valid():
             output = model(data)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
             loss = criterion(output, t, output_size, length) / batch_size
-            total_loss += loss.item()
+            total_val_loss += loss.item()
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
