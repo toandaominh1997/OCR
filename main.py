@@ -438,7 +438,6 @@ model = Model(n_classes=num_class)
 model = model.cuda()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-
 def by_field(predict, target):
     with torch.no_grad():
         correct=0
@@ -463,15 +462,39 @@ def by_char(predict, target):
                 if(p==t):
                     correct+=1
     return correct/float(total_target)
+
+def valid():
+    model.eval()
+    total_val_loss = 0
+    accBF = 0.9
+    accBC = 0.0
+    with torch.no_grad():
+        for batch_idx, (data, target) in enumerate(test_loader):
+            data, target = data.cuda(), target
+            batch_size = data.size(0)
+            optimizer.zero_grad()
+            t, length = converter.encode(target)
+            output = model(data)
+            output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
+            loss = criterion(output, t, output_size, length) / batch_size
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+            _, output = output.max(2)
+            output = output.transpose(1, 0).contiguous().view(-1)
+            sim_preds = converter.decode(output.data, output_size.data, raw=False)
+            accBF += by_field(sim_preds, target)
+            accBC += by_char(sim_preds, target)
+        print('Test-Loss: {}, accBF: {}, accBC: {}'.format(total_loss/len(test_loader), accBF/len(test_loader), accBC/len(test_loader)))
+
 epochs = 50
-model.train()
-total_loss = 0
-accBF = 0.0
-accBC = 0.0
-idx = 0
+
 for epoch in range(1, epochs):
-    for batch_idx, (data, target) in enumerate(train_loader):
-        idx+=1
+    accBF = 0.0
+    accBC = 0.0
+    total_loss = 0
+    model.train()
+    for idx, (data, target) in enumerate(train_loader):
         data, target = data.cuda(), target
         batch_size = data.size(0)
         optimizer.zero_grad()
@@ -487,8 +510,8 @@ for epoch in range(1, epochs):
         sim_preds = converter.decode(output.data, output_size.data, raw=False)
         accBF += by_field(sim_preds, target)
         accBC += by_char(sim_preds, target)
-        if(idx%1000==0):
-          print(('Index: {}, Loss: {}'.format(idx, total_loss/idx)))
-    idx=0      
+        if((idx+1)%1000==0):
+            print(('Index: {}, Loss: {}'.format(idx, total_loss/idx)))    
     print('Epoch: {}/{}, Loss: {}, accBF: {}, accBC: {}'.format(epoch, epochs, 
                         total_loss/len(train_loader), accBF/len(train_loader), accBC/len(train_loader)))
+    valid()
