@@ -186,10 +186,10 @@ train_transform = train_transforms(height=48)
 test_transform = test_transforms(height=48)
 
 train_dataset = lmdbDataset(root='../input/iam/IAM', label='valid-labels.json', transform=train_transform)
-test_dataset = lmdbDataset(root='../input/iam/IAM', label='valid-labels.json', transform=test_transform)
+test_dataset = lmdbDataset(root='../input/iam/IAM', label='train-labels.json', transform=test_transform)
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=int(4), collate_fn=alignCollate())
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=int(4), collate_fn=alignCollate())
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=int(10), collate_fn=alignCollate())
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=int(10), collate_fn=alignCollate())
 
 class strLabelConverter(object):
     def __init__(self, alphabet, ignore_case=False):
