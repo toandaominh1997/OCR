@@ -477,8 +477,6 @@ def valid():
             output = model(data)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
             loss = criterion(output, t, output_size, length) / batch_size
-            loss.backward()
-            optimizer.step()
             total_loss += loss.item()
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
@@ -511,7 +509,7 @@ for epoch in range(1, epochs):
         accBF += by_field(sim_preds, target)
         accBC += by_char(sim_preds, target)
         if((idx+1)%1000==0):
-            print(('Index: {}, Loss: {}'.format(idx, total_loss/idx)))    
+            print(('Index: {}/{}, Loss: {}'.format(idx, len(train_loader), total_loss/idx)))    
     print('Epoch: {}/{}, Loss: {}, accBF: {}, accBC: {}'.format(epoch, epochs, 
                         total_loss/len(train_loader), accBF/len(train_loader), accBC/len(train_loader)))
     valid()
