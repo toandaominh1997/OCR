@@ -508,6 +508,7 @@ for epoch in range(1, epochs):
         sim_preds = converter.decode(output.data, output_size.data, raw=False)
         accBF += by_field(sim_preds, target)
         accBC += by_char(sim_preds, target)
+        print(len(train_loader))
         if((idx+1)%1000==0):
             print(('Index: {}/{}, Loss: {}'.format(idx, len(train_loader), total_loss/idx)))    
     print('Epoch: {}/{}, Loss: {}, accBF: {}, accBC: {}'.format(epoch, epochs, 
