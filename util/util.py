@@ -47,3 +47,6 @@ def get_gpu():
         print('Oh, has anyone used them')
     del df
     return int(result_id)
+
+def loadData(v, data):
+    v.data.resize_(data.size()).copy_(data)

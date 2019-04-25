@@ -54,60 +54,70 @@ criterion = CTCLoss()
 
 
 model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
-model = model.cuda()
+
+data = torch.FloatTensor(opt.batch_size, 1, 64, 600)
+target = torch.IntTensor(opt.batch_size * 5)
+length = torch.IntTensor(opt.batch_size)
+
+
+if(opt.gpu_id>=0):
+    model = model.cuda()
+    data = data.cuda()
+    criterion = criterion.cuda()
+data = Variable(data)
+target = Variable(target)
+length = Variable(length)
+
 optimizer = optim.Adam(model.parameters(), lr=opt.lr)
 
 
 
 def train_epoch(model, data_loader):
-    accBF = 0.0
-    accBC = 0.0
     total_loss = 0
     model.train()
     start = time.time()
-    for idx, (data, target) in enumerate(data_loader):
-        data, target = data.cuda(), target
+    for idx, (_data, _target) in enumerate(data_loader):
         batch_size = data.size(0)
+        util.loadData(data, _data)
+        t, l = converter.encode(_target)
+        util.loadData(target, t)
+        util.loadData(length, l)
         optimizer.zero_grad()
-        t, length = converter.encode(target)
         output = model(data)
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-        loss = criterion(output, t, output_size, length) / batch_size
+        loss = criterion(output, target, output_size, length) / batch_size
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
-        _, output = output.max(2)
-        output = output.transpose(1, 0).contiguous().view(-1)
-        sim_preds = converter.decode(output.data, output_size.data, raw=False)
-        accBF += metric.by_field(sim_preds, target)
-        accBC += metric.by_char(sim_preds, target)
         if((idx+1)%1000==0):
-            print(('Index: {}/{}, Loss: {}'.format(idx, len(train_loader), total_loss/idx)))
-    return total_loss/len(data_loader), accBF/len(data_loader), accBC/len(data_loader)
+            print('Loss: {}'.format(total_loss/idx))
+    return total_loss/len(data_loader)
 def valid(model, data_loader):
     model.eval()
     total_val_loss = 0
     accBF = 0.0
     accBC = 0.0
     with torch.no_grad():
-        for idx, (data, target) in enumerate(data_loader):
-            data, target = data.cuda(), target
+        for idx, (_data, _target) in enumerate(data_loader):
             batch_size = data.size(0)
-            t, length = converter.encode(target)
+            util.loadData(data, _data)
+            t, l = converter.encode(_target)
+            util.loadData(target, t)
+            util.loadData(length, l)
             output = model(data)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-            loss = criterion(output, t, output_size, length) / batch_size
+            loss = criterion(output, target, output_size, length) / batch_size
             total_val_loss += loss.item()
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
-            accBF += metric.by_field(sim_preds, target)
-            accBC += metric.by_char(sim_preds, target)
+            accBF += metric.by_field(sim_preds, _target)
+            accBC += metric.by_char(sim_preds, _target)
         print('Test-Loss: {}, accBF: {}, accBC: {}'.format(total_val_loss/len(data_loader), accBF/len(data_loader), accBC/len(data_loader)))
 
 
 for epoch in range(1, opt.num_epoch):
     start = time.time()
-    loss, accBF, accBC = train_epoch(model, train_loader)  
-    print('Time: {}, Epoch: {}/{}, Loss: {}, accBF: {}, accBC: {}'.format(time.time()-start, epoch, opt.num_epoch, loss, accBF, accBC))
+    loss= train_epoch(model, train_loader)  
+    print('Time: {}, Epoch: {}/{}, Loss: {}'.format(time.time()-start, epoch, opt.num_epoch, loss))
     valid(model, test_loader)
