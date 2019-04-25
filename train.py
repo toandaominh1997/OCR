@@ -77,7 +77,7 @@ def train_epoch(model, data_loader):
     model.train()
     start = time.time()
     for idx, (_data, _target) in enumerate(data_loader):
-        batch_size = data.size(0)
+        batch_size = _data.size(0)
         util.loadData(data, _data)
         t, l = converter.encode(_target)
         util.loadData(target, t)
@@ -99,7 +99,7 @@ def valid(model, data_loader):
     accBC = 0.0
     with torch.no_grad():
         for idx, (_data, _target) in enumerate(data_loader):
-            batch_size = data.size(0)
+            batch_size = _data.size(0)
             util.loadData(data, _data)
             t, l = converter.encode(_target)
             util.loadData(target, t)
