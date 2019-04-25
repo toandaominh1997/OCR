@@ -7,7 +7,7 @@ import torch
 
 class ocrDataset(Dataset):
     def __init__(self, root, label, transform=None, target_transform=None):
-        (self.path, self.label) = self.parse_path('data', label)
+        (self.path, self.label) = self.parse_path('./data', label)
         self.root = root
         self.transform = transform
         self.target_transform = target_transform 
