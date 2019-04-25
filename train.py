@@ -47,7 +47,7 @@ test_dataset = dataset.ocrDataset(root=opt.root, label=opt.valid_label, transfor
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=int(opt.num_worker), collate_fn=dataset.alignCollate())
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=int(opt.num_worker), collate_fn=dataset.alignCollate())
 
-opt.alphabet = util.get_vocab(root='data', label=opt.train_label)
+opt.alphabet = util.get_vocab(root='ocr_kaggle/data', label=opt.train_label)
 
 opt.num_class = len(opt.alphabet)+1
 converter = convert.strLabelConverter(opt.alphabet)
