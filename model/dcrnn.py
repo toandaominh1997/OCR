@@ -190,3 +190,12 @@ class Model(nn.Module):
         output = self.crnn(input)
 
         return output
+
+
+image = torch.randn(32, 1, 48, 500)
+
+model = Encoder()
+
+output = model(image)
+
+print(output.size())

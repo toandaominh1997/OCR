@@ -15,6 +15,7 @@ from util import convert
 from model import dcrnn
 from model import crnn
 from model import metric
+from model import googlenet
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--root', required=True, help='path to dataset')
@@ -56,7 +57,7 @@ criterion = CTCLoss()
 
 
 # model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
-model = crnn.Model(num_class=opt.num_class, hidden_size=512)
+model = googlenet.Model(num_class=opt.num_class)
 data = torch.FloatTensor(opt.batch_size, 1, 64, 600)
 target = torch.IntTensor(opt.batch_size * 5)
 length = torch.IntTensor(opt.batch_size)
