@@ -57,7 +57,7 @@ criterion = CTCLoss()
 
 
 # model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
-model = crnn.Model(num_class=opt.num_clas, hidden_size=512)
+model = crnn.Model(num_class=opt.num_class, hidden_size=512)
 
 data = torch.FloatTensor(opt.batch_size, 1, 64, 600)
 target = torch.IntTensor(opt.batch_size * 5)
