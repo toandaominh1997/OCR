@@ -5,7 +5,8 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-from warpctc_pytorch import CTCLoss
+# from warpctc_pytorch import CTCLoss
+from torch.nn import CTCLoss
 import time
 # import from file config
 from util import util
@@ -33,7 +34,6 @@ parser.add_argument('--manualSeed', type=int, default=1234, help='reproduce expe
 opt = parser.parse_args()
 if(opt.gpu_id==-1):
     opt.gpu_id = util.get_gpu()
-print(opt)
 random.seed(opt.manualSeed)
 np.random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
@@ -74,7 +74,7 @@ length = Variable(length)
 
 optimizer = optim.Adam(model.parameters(), lr=opt.lr)
 
-
+print(opt)
 
 def train_epoch(model, data_loader):
     total_loss = 0
@@ -89,7 +89,7 @@ def train_epoch(model, data_loader):
         optimizer.zero_grad()
         output = model(data)
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-        loss = criterion(output, target, output_size, length) / batch_size
+        loss = criterion(output, target, output_size, length)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
