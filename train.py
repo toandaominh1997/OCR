@@ -5,10 +5,8 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-# from warpctc_pytorch import CTCLoss
-from torch.nn import CTCLoss
+from warpctc_pytorch import CTCLoss
 import time
-# import from file config
 from util import util
 from dataset import dataset
 from dataset import aug
@@ -80,16 +78,16 @@ def train_epoch(model, data_loader):
     total_loss = 0
     model.train()
     start = time.time()
-    for idx, (data, _target) in enumerate(data_loader):
-        data = data.cuda()
-        batch_size = data.size(0)     
-        target, length = converter.encode(_target)
+    for idx, (_data, _target) in enumerate(data_loader):
+        batch_size = _data.size(0)
+        util.loadData(data, _data)
+        t, l = converter.encode(_target)
+        util.loadData(target, t)
+        util.loadData(length, l)
         optimizer.zero_grad()
         output = model(data)
-        output = output.log_softmax(2).detach().requires_grad_()
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-        
-        loss = criterion(output, target, output_size, length)
+        loss = criterion(output, target, output_size, length) / batch_size
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -104,11 +102,13 @@ def valid(model, data_loader):
     with torch.no_grad():
         for idx, (_data, _target) in enumerate(data_loader):
             batch_size = _data.size(0)
-            data = _data.cuda()
-            target, length = converter.encode(_target)
+            util.loadData(data, _data)
+            t, l = converter.encode(_target)
+            util.loadData(target, t)
+            util.loadData(length, l)
             output = model(data)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-            loss = criterion(output, target, output_size, length)
+            loss = criterion(output, target, output_size, length) / batch_size
             total_val_loss += loss.item()
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
