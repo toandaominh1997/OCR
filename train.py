@@ -80,12 +80,11 @@ def train_epoch(model, data_loader):
     total_loss = 0
     model.train()
     start = time.time()
-    for idx, (_data, _target) in enumerate(data_loader):
-        batch_size = _data.size(0)
-        util.loadData(data, _data)
-        t, l = converter.encode(_target)
-        util.loadData(target, t)
-        util.loadData(length, l)
+    for idx, (data, _target) in enumerate(data_loader):
+        data = data.cuda()
+        batch_size = data.size(0)
+        
+        target, length = converter.encode(_target)
         optimizer.zero_grad()
         output = model(data)
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
@@ -104,10 +103,12 @@ def valid(model, data_loader):
     with torch.no_grad():
         for idx, (_data, _target) in enumerate(data_loader):
             batch_size = _data.size(0)
-            util.loadData(data, _data)
-            t, l = converter.encode(_target)
-            util.loadData(target, t)
-            util.loadData(length, l)
+            #util.loadData(data, _data)
+            data = _data.cuda()
+            target, length = converter.encode(_target)
+            #util.loadData(target, t)
+
+            #util.loadData(length, l)
             output = model(data)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
             loss = criterion(output, target, output_size, length) / batch_size
@@ -122,6 +123,6 @@ def valid(model, data_loader):
 
 for epoch in range(1, opt.num_epoch):
     start = time.time()
-    loss= train_epoch(model, train_loader)  
+    loss = train_epoch(model, train_loader)  
     print('Time: {}, Epoch: {}/{}, Loss: {}'.format(time.time()-start, epoch, opt.num_epoch, loss))
     valid(model, test_loader)
