@@ -13,6 +13,7 @@ class ocrDataset(Dataset):
         self.target_transform = target_transform 
         
     def parse_path(self, root, label):
+        
         df = pd.read_json(os.path.join(root, label), typ='series')
         df = pd.DataFrame(df)
         df = df.reset_index()

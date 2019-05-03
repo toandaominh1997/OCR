@@ -22,12 +22,14 @@ parser.add_argument('--train_label', required=True, help='path to dataset')
 parser.add_argument('--valid_label', required=True, help='path to dataset')
 parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
 parser.add_argument('--batch_size', type=int, default=16, help='input batch size')
+parser.add_argument('--hidden_size', type=int, default=256, help='input hidden size')
 parser.add_argument('--num_epoch', type=int, default=50, help='number of epochs to train for')
 parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
 parser.add_argument('--height', type=int, default=48, help='the height of the input image to network')
 parser.add_argument('--num_class', type=int, default=48, help='the number class of the input image to network')
 parser.add_argument('--lr', type=float, default=0.001, help='learning rate for neural network')
 parser.add_argument('--gpu_id', type=int, default=-1, help='id of GPUs to use')
+parser.add_argument('--model_id', type=int, default=0, help='choose model')
 parser.add_argument('--manualSeed', type=int, default=1234, help='reproduce experiemnt')
 opt = parser.parse_args()
 if(opt.gpu_id==-1):
@@ -53,8 +55,10 @@ opt.num_class = len(opt.alphabet)+1
 converter = convert.strLabelConverter(opt.alphabet)
 criterion = CTCLoss()
 
-
-model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
+if(opt.model_id==0):
+    model = crnn.Model(num_class=opt.num_class, hidden_size=opt.hidden_size)
+elif(opt.model_id==1):
+    model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
 
 
 data = torch.FloatTensor(opt.batch_size, 1, 64, 600)
