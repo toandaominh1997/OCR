@@ -194,7 +194,7 @@ class Model(nn.Module):
 
 image = torch.randn(32, 1, 48, 500)
 
-model = Encoder()
+model = Model(n_classes=78)
 
 output = model(image)
 
