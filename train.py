@@ -56,8 +56,8 @@ converter = convert.strLabelConverter(opt.alphabet)
 criterion = CTCLoss()
 
 
-# model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
-model = crnn.Model(num_class=opt.num_class, hidden_size=512)
+model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
+
 
 data = torch.FloatTensor(opt.batch_size, 1, 64, 600)
 target = torch.IntTensor(opt.batch_size * 5)
