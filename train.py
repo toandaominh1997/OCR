@@ -82,12 +82,13 @@ def train_epoch(model, data_loader):
     start = time.time()
     for idx, (data, _target) in enumerate(data_loader):
         data = data.cuda()
-        batch_size = data.size(0)
-        
+        batch_size = data.size(0)     
         target, length = converter.encode(_target)
         optimizer.zero_grad()
         output = model(data)
+        output = output.log_softmax(2).detach().requires_grad_()
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
+        
         loss = criterion(output, target, output_size, length)
         loss.backward()
         optimizer.step()
@@ -103,15 +104,11 @@ def valid(model, data_loader):
     with torch.no_grad():
         for idx, (_data, _target) in enumerate(data_loader):
             batch_size = _data.size(0)
-            #util.loadData(data, _data)
             data = _data.cuda()
             target, length = converter.encode(_target)
-            #util.loadData(target, t)
-
-            #util.loadData(length, l)
             output = model(data)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-            loss = criterion(output, target, output_size, length) / batch_size
+            loss = criterion(output, target, output_size, length)
             total_val_loss += loss.item()
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
