@@ -96,12 +96,12 @@ def train(data_loader):
         loss.backward()
         optimizer.step()
         total_loss+=loss.item()
-        if(idx%5==0 and idx!=0):
+        if(idx%5000==0 and idx!=0):
             print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
-    print(['start evalueate'])
+    print(['start evaluate'])
     model.eval()
     total_loss=0
     accBF = 0.0
@@ -126,7 +126,6 @@ def evaluate(data_loader):
 
 def main():
     by_field_best = 0.0
-    
     for epoch in range(1, args.num_epoch):
         model_best = False
         loss = train(train_loader)
