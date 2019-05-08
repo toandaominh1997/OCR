@@ -50,8 +50,8 @@ class ocrDataset(Dataset):
                 if(check==False):
                     list_path.append(path)
                     list_target.append(target)
-        if(train):
-            list_path, _, list_target, _ = train_test_split(list_path, list_target, test_size=0.9998)
+        # if(train):
+        #     list_path, _, list_target, _ = train_test_split(list_path, list_target, test_size=0.9998)
         return (list_path, list_target)
     def __len__(self):
         return len(self.path)
