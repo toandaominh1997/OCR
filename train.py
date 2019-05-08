@@ -1,3 +1,4 @@
+import os
 import argparse
 import random
 import numpy as np
@@ -7,123 +8,144 @@ import torch.optim as optim
 from torch.autograd import Variable
 from warpctc_pytorch import CTCLoss
 import time
-from util import util
+import datetime
+
 from dataset import dataset
 from dataset import aug
-from util import convert
+
 from model import dcrnn
-from model import crnn
-from model import metric
-from model import googlenet
+
+from utils import util
+from utils import convert
+from utils import metric
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--root', required=True, help='path to dataset')
 parser.add_argument('--train_label', required=True, help='path to dataset')
 parser.add_argument('--valid_label', required=True, help='path to dataset')
-parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
+parser.add_argument('--test_label', default=None, help='path to dataset')
+parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=4)
 parser.add_argument('--batch_size', type=int, default=16, help='input batch size')
 parser.add_argument('--hidden_size', type=int, default=256, help='input hidden size')
-parser.add_argument('--num_epoch', type=int, default=50, help='number of epochs to train for')
-parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
 parser.add_argument('--height', type=int, default=48, help='the height of the input image to network')
+parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
 parser.add_argument('--num_class', type=int, default=48, help='the number class of the input image to network')
-parser.add_argument('--lr', type=float, default=0.001, help='learning rate for neural network')
-parser.add_argument('--gpu_id', type=int, default=-1, help='id of GPUs to use')
-parser.add_argument('--model_id', type=int, default=0, help='choose model')
-parser.add_argument('--manualSeed', type=int, default=1234, help='reproduce experiemnt')
-opt = parser.parse_args()
-if(opt.gpu_id==-1):
-    opt.gpu_id = util.get_gpu()
-random.seed(opt.manualSeed)
-np.random.seed(opt.manualSeed)
-torch.manual_seed(opt.manualSeed)
+parser.add_argument('--num_epoch', type=int, default=50, help='number of epochs to train for')
+parser.add_argument('--learning_rate', type=float, default=0.0001, help='learning rate for neural network')
+parser.add_argument('--cuda', default=True, help='enables cuda')
+parser.add_argument('--num_gpu', type=int, default=1, help='number of GPUs to use')
+parser.add_argument('--resume', default='', help="path to pretrained model (to continue training)")
+parser.add_argument('--save_dir', default='saved', help='Where to store samples and models')
+parser.add_argument('--manual_seed', type=int, default=1234, help='reproduce experiemnt')
+
+args = parser.parse_args()
+start_time = datetime.datetime.now().strftime('%m-%d_%H%M%S')
+if(not os.path.exists(os.path.join(args.save_dir, start_time))):
+    os.makedirs(os.path.join(args.save_dir, start_time))
+random.seed(args.manual_seed)
+np.random.seed(args.manual_seed)
+torch.manual_seed(args.manual_seed)
 cudnn.benchmark = True
-torch.cuda.set_device(opt.gpu_id)
+args.alphabet = util.get_vocab(root=args.root, label=args.train_label)
 
-train_transform = aug.train_transforms(height=opt.height)
-test_transform = aug.test_transforms(height=opt.height)
+if(torch.cuda.is_available() and args.cuda):
+    torch.cuda.set_device(util.get_gpu())
+if(torch.cuda.is_available() and not args.cuda):
+    print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+train_transform = aug.train_transforms(height=args.height)
+test_transform = aug.test_transforms(height=args.height)
 
-train_dataset = dataset.ocrDataset(root=opt.root, label=opt.train_label, transform=train_transform)
-test_dataset = dataset.ocrDataset(root=opt.root, label=opt.valid_label, transform=test_transform)
+train_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.train_label, train=True, transform=train_transform)
+valid_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.valid_label, train=False, transform=test_transform)
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=int(opt.num_worker), collate_fn=dataset.alignCollate())
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=int(opt.num_worker), collate_fn=dataset.alignCollate())
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
+valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
 
-opt.alphabet = util.get_vocab(root=opt.root, label=opt.train_label)
+if(args.test_label is not None):
+    test_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.test_label, train=False, transform=test_transform)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
 
-opt.num_class = len(opt.alphabet)+1
-converter = convert.strLabelConverter(opt.alphabet)
+
+args.num_class = len(args.alphabet) + 1
+converter = convert.strLabelConverter(args.alphabet)
+
+model = dcrnn.Model(n_classes=args.num_class, fixed_height=args.height)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+
+if(args.resume!=''):
+    print('loading pretrained model from {}'.format(args.resume))
+    model, _ = util.resume_checkpoint(model, optimizer, args.resume)
 criterion = CTCLoss()
-
-if(opt.model_id==0):
-    model = crnn.Model(num_class=opt.num_class, hidden_size=opt.hidden_size)
-elif(opt.model_id==1):
-    model = dcrnn.Model(n_classes=opt.num_class, fixed_height=opt.height)
-
-
-data = torch.FloatTensor(opt.batch_size, 1, 64, 600)
-target = torch.IntTensor(opt.batch_size * 5)
-length = torch.IntTensor(opt.batch_size)
-
-
-if(opt.gpu_id>=0):
+if(torch.cuda.is_available() and args.cuda):
     model = model.cuda()
-    data = data.cuda()
     criterion = criterion.cuda()
-data = Variable(data)
-target = Variable(target)
-length = Variable(length)
 
-optimizer = optim.Adam(model.parameters(), lr=opt.lr)
-
-print(opt)
-
-def train_epoch(model, data_loader):
-    total_loss = 0
+def train(data_loader):
+    total_loss=0
     model.train()
-    start = time.time()
-    for idx, (_data, _target) in enumerate(data_loader):
-        batch_size = _data.size(0)
-        util.loadData(data, _data)
-        t, l = converter.encode(_target)
-        util.loadData(target, t)
-        util.loadData(length, l)
+    print('start trainning')
+    for idx, (image, target) in enumerate(data_loader):
+        batch_size = image.size(0)
+        image = image.cuda()
+        label, target_size = converter.encode(target)
         optimizer.zero_grad()
-        output = model(data)
+        output = model(image)
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-        loss = criterion(output, target, output_size, length) / batch_size
+        loss = criterion(output, label, output_size, target_size)/batch_size
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
-        if((idx+1)%1000==0):
-            print('Loss: {}'.format(total_loss/idx))
+        total_loss+=loss.item()
+        if(idx%5==0 and idx!=0):
+            print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
     return total_loss/len(data_loader)
-def valid(model, data_loader):
+
+def evaluate(data_loader):
+    print(['start evalueate'])
     model.eval()
-    total_val_loss = 0
+    total_loss=0
     accBF = 0.0
     accBC = 0.0
     with torch.no_grad():
-        for idx, (_data, _target) in enumerate(data_loader):
-            batch_size = _data.size(0)
-            util.loadData(data, _data)
-            t, l = converter.encode(_target)
-            util.loadData(target, t)
-            util.loadData(length, l)
-            output = model(data)
+        for idx, (image, target) in enumerate(data_loader):
+            batch_size = image.size(0)
+            image = image.cuda()
+            label, target_size = converter.encode(target)
+            output = model(image)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-            loss = criterion(output, target, output_size, length) / batch_size
-            total_val_loss += loss.item()
+            loss = criterion(output, label, output_size, target_size)/batch_size
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
-            accBF += metric.by_field(sim_preds, _target)
-            accBC += metric.by_char(sim_preds, _target)
-        print('Test-Loss: {}, accBF: {}, accBC: {}'.format(total_val_loss/len(data_loader), accBF/len(data_loader), accBC/len(data_loader)))
+            accBF += metric.by_field(sim_preds, target)
+            accBC += metric.by_char(sim_preds, target)
+        total_loss /=len(data_loader)
+        return total_loss, accBF, accBC
+    
 
 
-for epoch in range(1, opt.num_epoch):
-    start = time.time()
-    loss = train_epoch(model, train_loader)  
-    print('Time: {}, Epoch: {}/{}, Loss: {}'.format(time.time()-start, epoch, opt.num_epoch, loss))
-    valid(model, test_loader)
+def main():
+    by_field_best = 0.0
+    
+    for epoch in range(1, args.num_epoch):
+        model_best = False
+        loss = train(train_loader)
+        val_loss, val_by_field, val_by_char = evaluate(valid_loader)
+        if(val_by_field>by_field_best):
+            model_best = True
+        log = {'epoch': epoch}
+        log['loss'] = loss
+        log['val_loss'] = val_loss
+        log['val_by_field'] = val_by_field
+        log['val_by_char'] = val_by_char
+        if(args.test_label is not None):
+            test_loss, test_by_field, test_by_char = evaluate(test_loader)
+            log['test_loss'] = test_loss
+            log['test_by_field'] = test_by_field
+            log['test_by_char'] = test_by_char
+        for key, value in log.items():
+            print('    {:15s}: {}'.format(str(key), value))
+        util.save_checkpoint(epoch, model, optimizer, args.save_dir, model_best, start_time)
+
+if __name__ == '__main__':
+    main()
