@@ -6,6 +6,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
+from torch.utils.tensorboard import Summary
 from warpctc_pytorch import CTCLoss
 import time
 import datetime
@@ -114,13 +115,14 @@ def evaluate(data_loader):
             output = model(image)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
             loss = criterion(output, label, output_size, target_size)/batch_size
+            total_loss+=loss.items()
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
             accBF += metric.by_field(sim_preds, target)
             accBC += metric.by_char(sim_preds, target)
         total_loss /=len(data_loader)
-        return total_loss, accBF, accBC
+        return total_loss, accBF/len(data_loader), accBC/len(data_loader)
     
 
 
