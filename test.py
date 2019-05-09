@@ -99,4 +99,5 @@ def evaluate(data_loader):
 
 
 if __name__ == '__main__':
-    evaluate(test_loader)
+    loss, bf, bc = evaluate(test_loader)
+    print('loss: {}, by_field: {}, by_char: {}'.format(loss, bf, bc))
