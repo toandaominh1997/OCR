@@ -23,7 +23,6 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--root', required=True, help='path to dataset')
 parser.add_argument('--train_label', required=True, help='path to dataset')
-parser.add_argument('--valid_label', required=True, help='path to dataset')
 parser.add_argument('--test_label', default=None, help='path to dataset')
 parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
 parser.add_argument('--batch_size', type=int, default=32, help='input batch size')
