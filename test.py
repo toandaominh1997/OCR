@@ -55,9 +55,9 @@ if(torch.cuda.is_available() and not args.cuda):
 
 test_transform = aug.test_transforms(height=args.height)
 
-if(args.test_label is not None):
-    test_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.test_label, train=False, transform=test_transform)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
+
+test_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.test_label, train=False, transform=test_transform)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
 
 
 args.num_class = len(args.alphabet) + 1
@@ -99,4 +99,4 @@ def evaluate(data_loader):
 
 
 if __name__ == '__main__':
-    main()
+    evaluate(test_loader)
