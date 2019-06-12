@@ -1,5 +1,6 @@
 import torch 
 import torch.nn as nn
+import torch.nn.functional as F
 from models.encoder import Encoder
 from models.decoder import Decoder
 
@@ -13,10 +14,11 @@ class Model(nn.Module):
             self.encoder,
             self.decoder
         )
+        self.log_softmax = nn.Softmax(dim=2)
 
     def forward(self, input):
         output = self.crnn(input)
-
+        output = self.log_softmax(output)
         return output
 
 

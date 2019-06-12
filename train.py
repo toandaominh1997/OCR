@@ -6,14 +6,14 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-from warpctc_pytorch import CTCLoss
+from torch.nn import CTCLoss
 import time
 import datetime
 
 from dataset import dataset
 from dataset import aug
 
-from model import dcrnn
+from models import model
 
 from util import util
 from util import convert
@@ -70,7 +70,7 @@ if(args.test_label is not None):
 args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
-model = dcrnn.Model(n_classes=args.num_class, fixed_height=args.height)
+model = model.Model(num_classes=args.num_class, fixed_height=args.height)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
 if(args.resume!=''):
