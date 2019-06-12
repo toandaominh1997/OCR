@@ -111,8 +111,8 @@ def evaluate(data_loader):
             label, target_size = converter.encode(target)
             output = model(image)
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-            loss = criterion(output, label, output_size, target_size)/batch_size
-            total_loss+=loss.items()
+            loss = criterion(output, label, output_size, target_size)
+            total_loss+=loss
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
@@ -121,7 +121,7 @@ def evaluate(data_loader):
         total_loss /=len(data_loader)
         return total_loss, accBF/len(data_loader), accBC/len(data_loader)
 
-# kakag
+
 def main():
     by_field_best = 0.0
     for epoch in range(1, args.num_epoch):
