@@ -6,7 +6,6 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-from torch.utils.tensorboard import Summary
 from warpctc_pytorch import CTCLoss
 import time
 import datetime
@@ -85,7 +84,6 @@ if(torch.cuda.is_available() and args.cuda):
 def train(data_loader):
     total_loss=0
     model.train()
-    print('{} begin trainning'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     for idx, (image, target) in enumerate(data_loader):
         batch_size = image.size(0)
         image = image.cuda()
@@ -99,11 +97,9 @@ def train(data_loader):
         total_loss+=loss.item()
         if(idx%5000==0 and idx!=0):
             print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
-    print('{} end trainning'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
-    print('{} begin evaluate'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     model.eval()
     total_loss=0
     accBF = 0.0
@@ -124,7 +120,6 @@ def evaluate(data_loader):
             accBC += metric.by_char(sim_preds, target)
         total_loss /=len(data_loader)
         return total_loss, accBF/len(data_loader), accBC/len(data_loader)
-    print('{} end evaluate'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
 # kakag
 def main():
