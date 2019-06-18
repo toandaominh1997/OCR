@@ -6,7 +6,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-from torch.nn import CTCLoss
+from warpctc_pytorch import CTCLoss
 import time
 import datetime
 
