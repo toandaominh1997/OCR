@@ -25,6 +25,7 @@ parser.add_argument('--root', required=True, help='path to dataset')
 parser.add_argument('--train_label', required=True, help='path to dataset')
 parser.add_argument('--valid_label', required=True, help='path to dataset')
 parser.add_argument('--test_label', default=None, help='path to dataset')
+parser.add_argument('--net', default='efficientnet', help='Net of model')
 parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
 parser.add_argument('--batch_size', type=int, default=32, help='input batch size')
 parser.add_argument('--hidden_size', type=int, default=256, help='input hidden size')
@@ -70,7 +71,7 @@ if(args.test_label is not None):
 args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
-model = model.Model(num_classes=args.num_class, fixed_height=args.height)
+model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
 if(args.resume!=''):
