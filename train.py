@@ -52,7 +52,7 @@ torch.manual_seed(args.manual_seed)
 cudnn.benchmark = True
 if args.alphabet is None:
     args.alphabet = util.get_vocab(root=args.root, label=args.train_label)
-if args.alphabet is not None:
+elif args.alphabet is not None:
     args.alphabet = ''.join(list(open(os.path.join(args.root, args.alphabet))))
     auto_alphabet = util.get_vocab(root=args.root, label=args.train_label)
     for word in auto_alphabet:
