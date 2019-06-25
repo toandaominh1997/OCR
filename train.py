@@ -9,11 +9,13 @@ from torch.autograd import Variable
 from warpctc_pytorch import CTCLoss
 import time
 import datetime
+from tqdm import tqdm 
 
 from dataset import dataset
 from dataset import aug
 
 from models import model
+from models import dcrnn
 
 from util import util
 from util import convert
@@ -30,7 +32,7 @@ parser.add_argument('--num_worker', type=int, help='number of data loading worke
 parser.add_argument('--batch_size', type=int, default=32, help='input batch size')
 parser.add_argument('--hidden_size', type=int, default=256, help='input hidden size')
 parser.add_argument('--height', type=int, default=48, help='the height of the input image to network')
-parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
+parser.add_argument('--alphabet', type=str, default=None)
 parser.add_argument('--num_class', type=int, default=48, help='the number class of the input image to network')
 parser.add_argument('--num_epoch', type=int, default=50, help='number of epochs to train for')
 parser.add_argument('--learning_rate', type=float, default=0.0001, help='learning rate for neural network')
@@ -48,8 +50,18 @@ random.seed(args.manual_seed)
 np.random.seed(args.manual_seed)
 torch.manual_seed(args.manual_seed)
 cudnn.benchmark = True
-args.alphabet = util.get_vocab(root=args.root, label=args.train_label)
+if args.alphabet is None:
+    args.alphabet = util.get_vocab(root=args.root, label=args.train_label)
+if args.alphabet is not None:
+    args.alphabet = ''.join(list(open(os.path.join(args.root, args.alphabet))))
+    auto_alphabet = util.get_vocab(root=args.root, label=args.train_label)
+    for word in auto_alphabet:
+        if word not in args.alphabet:
+            args.alphabet += word
 
+
+
+print('alphabet: ', len(args.alphabet))
 if(torch.cuda.is_available() and args.cuda):
     torch.cuda.set_device(util.get_gpu())
 if(torch.cuda.is_available() and not args.cuda):
@@ -72,11 +84,12 @@ args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
 model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
+model = dcrnn.Model(n_classes=args.num_class, fixed_height=args.height)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
 if(args.resume!=''):
     print('loading pretrained model from {}'.format(args.resume))
-    model, _ = util.resume_checkpoint(model, optimizer, args.resume)
+    model, _ = util.resume_checkpoint(args, model, optimizer, args.resume)
 criterion = CTCLoss()
 if(torch.cuda.is_available() and args.cuda):
     model = model.cuda()
@@ -96,11 +109,12 @@ def train(data_loader):
         loss.backward()
         optimizer.step()
         total_loss+=loss.item()
-        if(idx%5000==0 and idx!=0):
+        if(idx%10000==0 and idx!=0):
             print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
+    print('evaluate')
     model.eval()
     total_loss=0
     accBF = 0.0
@@ -120,6 +134,7 @@ def evaluate(data_loader):
             accBF += metric.by_field(sim_preds, target)
             accBC += metric.by_char(sim_preds, target)
         total_loss /=len(data_loader)
+        print('Done!')
         return total_loss, accBF/len(data_loader), accBC/len(data_loader)
 
 
@@ -143,7 +158,7 @@ def main():
             log['test_by_char'] = test_by_char
         for key, value in log.items():
             print('    {:15s}: {}'.format(str(key), value))
-        util.save_checkpoint(epoch, model, optimizer, args.save_dir, model_best, start_time)
+        util.save_checkpoint(args, epoch, model, optimizer, args.save_dir, model_best, start_time)
 
 if __name__ == '__main__':
     main()
