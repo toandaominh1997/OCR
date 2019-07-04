@@ -85,10 +85,10 @@ if(args.test_label is not None):
 args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
-# model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
-model = dcrnn.Model(n_classes=args.num_class)
-#optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
-optimizer = adamW.AdamW(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.99), weight_decay=0.1)
+model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
+#model = dcrnn.Model(n_classes=args.num_class)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+
 
 if(args.resume!=''):
     print('loading pretrained model from {}'.format(args.resume))
