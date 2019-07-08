@@ -13,62 +13,49 @@ class ocrDataset(Dataset):
         self.label = label
         self.transform = transform
         self.target_transform = target_transform
-    def read_data(self, args, root, label, train):
-        typefile = label.split('.')[-1]
+    def read_typefile(self, filename, typefile):
         list_path = list()
         list_target = list()
-        if(typefile=='json'):
-            df = pd.read_json(os.path.join(root, label), typ='series')
+
+        if typefile == 'json':
+            df = pd.read_json(filename, typ='series')
             df = pd.DataFrame(df)
             df = df.reset_index()
             df.columns = ['index', 'target']
             list_path = df['index'].tolist()
             list_target = df['target'].tolist()
-            if(train==False):
-                list_path_fake = list()
-                list_target_fake = list()
-                for path, target in zip(list_path, list_target):
-                    check = False
-                    for l in target:
-                        if(l not in args.alphabet):
-                            check=True
-                    if(check==False):
-                        list_path_fake.append(path)
-                        list_target_fake.append(target)
-                list_path=list_path_fake
-                list_target=list_target_fake
-        elif(typefile=='txt'):
-            lines = list(open(os.path.join(root, label)))
+        elif typefile == 'txt':
+            lines = list(open(filename))
             for line in lines:
                 path, target = line.split('|')[0], line.split('|')[1]
                 target = target.replace('\n', '')
-                check=False
-                if(train==False):
-                    for l in target:
-                        if(l not in args.alphabet):
-                            check=True
-                if(check==False):
-                    list_path.append(path)
-                    list_target.append(target)
-        # if(train):
-        #     list_path, _, list_target, _ = train_test_split(list_path, list_target, test_size=0.9998)
-        return (list_path, list_target)
+                list_path.append(path)
+                list_target.append(target)
+        return list_path, list_target           
+    def read_data(self, args, root, label, train):
+        labels = label.split('+')
+        list_path = list()
+        list_target = list()
+        for lab in labels:
+            typefile = lab.split('.')[-1]
+            list_path, list_target = self.read_typefile(os.path.join(root, lab), typefile)
+        return list_path, list_target
     def __len__(self):
         return len(self.path)
     def __getitem__(self, index):
         try:
             root = os.path.join(self.root, '/'.join(self.label.split('/')[:-1]))
             filename = os.path.join(root, self.path[index])
-            img = Image.open(filename).convert('L')
+            image = Image.open(filename).convert('L')
         except IOError:
             print('Corrupted image for %d' % index)
             return self[index + 1]
         if self.transform is not None:
-            img = self.transform(img)
+            image = self.transform(image)
         target = self.target[index].encode()
         if self.target_transform is not None:
             target = self.target_transform(target)
-        return (img, target)
+        return (image, target)
 
 class alignCollate(object):
     def __init__(self):
