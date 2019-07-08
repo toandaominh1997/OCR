@@ -6,7 +6,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-from warpctc_pytorch import CTCLoss
+from torch.nn import CTCLoss
 import time
 import datetime
 
@@ -14,12 +14,10 @@ from dataset import dataset
 from dataset import aug
 
 from models import model
-from models import dcrnn
 
 from util import util
 from util import convert
 from util import metric
-from util import adamW
 
 parser = argparse.ArgumentParser()
 
@@ -27,7 +25,6 @@ parser.add_argument('--root', required=True, help='path to dataset')
 parser.add_argument('--train_label', required=True, help='path to dataset')
 parser.add_argument('--valid_label', required=True, help='path to dataset')
 parser.add_argument('--test_label', default=None, help='path to dataset')
-parser.add_argument('--net', default='efficientnet', help='Net of model')
 parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
 parser.add_argument('--batch_size', type=int, default=32, help='input batch size')
 parser.add_argument('--hidden_size', type=int, default=256, help='input hidden size')
@@ -35,9 +32,10 @@ parser.add_argument('--height', type=int, default=48, help='the height of the in
 parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
 parser.add_argument('--num_class', type=int, default=48, help='the number class of the input image to network')
 parser.add_argument('--num_epoch', type=int, default=50, help='number of epochs to train for')
-parser.add_argument('--learning_rate', type=float, default=0.01, help='learning rate for neural network')
+parser.add_argument('--learning_rate', type=float, default=0.0001, help='learning rate for neural network')
 parser.add_argument('--cuda', default=True, help='enables cuda')
 parser.add_argument('--num_gpu', type=int, default=1, help='number of GPUs to use')
+parser.add_argument('--display', type=int, default=10000, help='display iteration each epoch')
 parser.add_argument('--resume', default='', help="path to pretrained model (to continue training)")
 parser.add_argument('--save_dir', default='saved', help='Where to store samples and models')
 parser.add_argument('--manual_seed', type=int, default=1234, help='reproduce experiemnt')
@@ -50,19 +48,7 @@ random.seed(args.manual_seed)
 np.random.seed(args.manual_seed)
 torch.manual_seed(args.manual_seed)
 cudnn.benchmark = True
-alphabet = ''
-if(args.resume!=''):
-    checkpoint = torch.load(args.resume)
-    alphabet = checkpoint['alphabet']
-    origin_alphabet = util.get_vocab(root=args.root, label=args.train_label)
-    for word in origin_alphabet:
-        if word not in alphabet:
-            alphabet +=word
-else:
-    alphabet = util.get_vocab(root=args.root, label=args.train_label)
 
-args.alphabet = alphabet
-del alphabet
 
 if(torch.cuda.is_available() and args.cuda):
     torch.cuda.set_device(util.get_gpu())
@@ -81,18 +67,25 @@ if(args.test_label is not None):
     test_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.test_label, train=False, transform=test_transform)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
 
+if args.resume is not None:
+    print('loading pretrained class from {}'.format(args.resume))
+    checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
+    args.alphabet = checkpoint['alphabet']
+    del checkpoint
+else:
+    args.alphabet = util.get_vocab(root=args.root, label=args.train_label)
 
 args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
-model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
-#model = dcrnn.Model(n_classes=args.num_class)
-optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+model = model.Model(num_classes=args.num_class, fixed_height=args.height)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
-
-if(args.resume!=''):
+if args.resume is not None:
     print('loading pretrained model from {}'.format(args.resume))
-    model = util.resume_checkpoint(args, model, checkpoint)
+    checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
+    model.load_state_dict(checkpoint['state_dict'])
+    del checkpoint
 criterion = CTCLoss()
 if(torch.cuda.is_available() and args.cuda):
     model = model.cuda()
@@ -112,7 +105,7 @@ def train(data_loader):
         loss.backward()
         optimizer.step()
         total_loss+=loss.item()
-        if(idx%5000==0 and idx!=0):
+        if idx%args.display==0 and idx!=0 :
             print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
     return total_loss/len(data_loader)
 
@@ -145,7 +138,7 @@ def main():
         model_best = False
         loss = train(train_loader)
         val_loss, val_by_field, val_by_char = evaluate(valid_loader)
-        if(val_by_field>by_field_best):
+        if val_by_field>by_field_best:
             model_best = True
         log = {'epoch': epoch}
         log['loss'] = loss
@@ -159,7 +152,7 @@ def main():
             log['test_by_char'] = test_by_char
         for key, value in log.items():
             print('    {:15s}: {}'.format(str(key), value))
-        util.save_checkpoint(epoch, model, optimizer, args.save_dir, model_best, start_time)
+        util.save_checkpoint(args, epoch, model, args.save_dir, model_best, start_time)
 
 if __name__ == '__main__':
     main()
