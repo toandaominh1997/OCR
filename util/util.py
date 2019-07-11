@@ -5,29 +5,23 @@ import copy
 import datetime
 import torch
 def get_vocab(root, label):
-    # filename = os.path.join(root, label)
-
-    # df = pd.read_json(filename, typ='series', encoding="utf-8")
-    # df = pd.DataFrame(df)
-    # df = df.reset_index()
-    # df.columns = ['index', 'label']
-    # alphabets = ''.join(sorted(set(''.join(df['label'].get_values()))))
-
-    typefile = label.split('.')[-1]
-    list_label = list()
-    if(typefile=='json'):
-        df = pd.read_json(os.path.join(root, label), typ='series')
-        df = pd.DataFrame(df)
-        df = df.reset_index()
-        df.columns = ['index', 'label']
-        list_label = df['label'].tolist()
-    elif(typefile=='txt'):
-        lines = list(open(os.path.join(root, label)))
-        for line in lines:
-            label = line.split('|')[1].replace('\n', '')
-            list_label.append(label)
-    
-    alphabets = ''.join(sorted(set(''.join(list_label))))
+    labels = label.split('+')
+    list_target = list()
+    for lab in labels:
+        typefile = lab.split('.')[-1]
+        if typefile == 'json':
+            df = pd.read_json(os.path.join(root, label), typ='series')
+            df = pd.DataFrame(df)
+            df = df.reset_index()
+            df.columns = ['index', 'target']
+            list_target = df['target'].tolist()
+        elif typefile == 'txt':
+            lines = list(open(os.path.join(root, label)))
+            for line in lines:
+                path, target = line.split('|')[0], line.split('|')[1]
+                target = target.replace('\n', '')
+                list_target.append(target)
+    alphabets = ''.join(sorted(set(''.join(list_target))))
     return alphabets
 
 def get_gpu():                                                                                          
@@ -68,7 +62,7 @@ def get_gpu():
     del df
     return int(result_id)
 
-def save_checkpoint(epoch, model, optimizer, save_dir, save_best, start_time):
+def save_checkpoint(args, epoch, model, save_dir, save_best, start_time):
     
     checkpoint_dir = os.path.join(save_dir, start_time)
     arch = type(model).__name__
@@ -77,7 +71,7 @@ def save_checkpoint(epoch, model, optimizer, save_dir, save_best, start_time):
         'arch': arch,
         'epoch': epoch,
         'state_dict': model.state_dict(),
-        'optimizer': optimizer.state_dict()
+        'alphabet': args.alphabet
     }
     filename = os.path.join(checkpoint_dir, 'checkpoint_epoch{}.pth'.format(epoch))
     torch.save(state, filename)
@@ -86,9 +80,3 @@ def save_checkpoint(epoch, model, optimizer, save_dir, save_best, start_time):
         best_path = os.path.join(checkpoint_dir, 'model_best.pth')
         torch.save(state, best_path)
         print('Saving current best: {} ...'.format('model_best.pth'))
-
-def resume_checkpoint(model, optimizer, resume_path):
-    checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
-    model.load_state_dict(checkpoint['state_dict'])
-    #optimizer.load_state_dict(checkpoint['optimizer'])
-    return model, optimizer
