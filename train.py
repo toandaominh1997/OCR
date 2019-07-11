@@ -1,3 +1,5 @@
+import subprocess
+subprocess.run('pip install -r requirements.txt')
 import os
 import argparse
 import random
@@ -6,7 +8,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
-from warpctc_pytorch import CTCLoss
+from torch.nn import CTCLoss
 import time
 import datetime
 from tqdm import tqdm 
@@ -23,9 +25,9 @@ from util import metric
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--root', required=True, help='path to dataset')
-parser.add_argument('--train_label', required=True, help='path to dataset')
-parser.add_argument('--valid_label', required=True, help='path to dataset')
+parser.add_argument('--root', default='/opt/ml/input/data/train', help='path to dataset')
+parser.add_argument('--train_label', default='train_final_combine_normalize_withspace_v2.txt', help='path to dataset')
+parser.add_argument('--valid_label', default= 'val_final_combine_normalize_withspace_v2.txt', help='path to dataset')
 parser.add_argument('--test_label', default=None, help='path to dataset')
 parser.add_argument('--net', default='efficientnet', help='Net of model')
 parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
@@ -43,6 +45,7 @@ parser.add_argument('--save_dir', default='saved', help='Where to store samples 
 parser.add_argument('--manual_seed', type=int, default=1234, help='reproduce experiemnt')
 
 args = parser.parse_args()
+
 start_time = datetime.datetime.now().strftime('%m-%d_%H%M%S')
 if(not os.path.exists(os.path.join(args.save_dir, start_time))):
     os.makedirs(os.path.join(args.save_dir, start_time))
@@ -124,6 +127,7 @@ def evaluate(data_loader):
             image = image.cuda()
             label, target_size = converter.encode(target)
             output = model(image)
+            output = output.log_softmax(2).detach().requires_grad_()
             output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
             loss = criterion(output, label, output_size, target_size)
             total_loss+=loss
