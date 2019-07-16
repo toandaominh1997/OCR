@@ -1,5 +1,5 @@
 import subprocess
-subprocess.run('pip install -r requirements.txt')
+# subprocess.run('pip install -r requirements.txt')
 import os
 import argparse
 import random
@@ -38,7 +38,7 @@ parser.add_argument('--learning_rate', type=float, default=0.0001, help='learnin
 parser.add_argument('--cuda', default=True, help='enables cuda')
 parser.add_argument('--num_gpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--display', type=int, default=10000, help='display iteration each epoch')
-parser.add_argument('--resume', default='', help="path to pretrained model (to continue training)")
+parser.add_argument('--resume', default=None, help="path to pretrained model (to continue training)")
 parser.add_argument('--save_dir', default='saved', help='Where to store samples and models')
 parser.add_argument('--manual_seed', type=int, default=1234, help='reproduce experiemnt')
 
@@ -72,7 +72,7 @@ if(args.test_label is not None):
 
 if args.resume is not None:
     print('loading pretrained class from {}'.format(args.resume))
-    checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
+    checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
     args.alphabet = checkpoint['alphabet']
     del checkpoint
 else:
@@ -86,25 +86,39 @@ optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.5, 0.
 
 if args.resume is not None:
     print('loading pretrained model from {}'.format(args.resume))
-    checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
+    checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpoint['state_dict'])
     del checkpoint
 criterion = CTCLoss()
+
+global image, text, length
+image = torch.FloatTensor(args.batch_size, 1, 48, 300)
+text = torch.IntTensor(args.batch_size * 5)
+length = torch.IntTensor(args.batch_size)
+
 if(torch.cuda.is_available() and args.cuda):
     model = model.cuda()
+    image = image.cuda()
     criterion = criterion.cuda()
+image = Variable(image)
+text = Variable(text)
+length = Variable(length)    
 
 def train(data_loader):
     total_loss=0
     model.train()
-    for idx, (image, target) in enumerate(data_loader):
-        batch_size = image.size(0)
-        image = image.cuda()
-        label, target_size = converter.encode(target)
-        optimizer.zero_grad()
+    for idx, (cpu_images, cpu_texts) in enumerate(data_loader):
+        batch_size = cpu_images.size(0)
+        util.loadData(image, cpu_images)
+        t, l = converter.encode(cpu_texts)
+        
+        util.loadData(text, t)
+        util.loadData(length, l)
         output = model(image)
         output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-        loss = criterion(output, label, output_size, target_size)/batch_size
+        loss = criterion(output, text, output_size, length)/batch_size
+        print('loss ne: ', loss)
+        model.zero_grad()
         loss.backward()
         optimizer.step()
         total_loss+=loss.item()

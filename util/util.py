@@ -80,3 +80,6 @@ def save_checkpoint(args, epoch, model, save_dir, save_best, start_time):
         best_path = os.path.join(checkpoint_dir, 'model_best.pth')
         torch.save(state, best_path)
         print('Saving current best: {} ...'.format('model_best.pth'))
+
+def loadData(v, data):
+    v.data.resize_(data.size()).copy_(data)

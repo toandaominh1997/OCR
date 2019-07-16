@@ -17,9 +17,8 @@ pytorch_estimator = PyTorch(entry_point='train.py',
                             train_volume_size=200,
                             base_job_name= 'demo-sagemaker-bigkizd',
                             train_max_run=5*86400,  # 86400s ~ 1day
-                            framework_version='1.1.0',
+                            framework_version='1.0.1',
                             py_version="py3",
                             hyperparameters={})
 
-pytorch_estimator.fit({"train": train_data_path})
-
+pytorch_estimator.fit({"train": train_data_path}) 
