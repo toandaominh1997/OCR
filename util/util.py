@@ -82,4 +82,5 @@ def save_checkpoint(args, epoch, model, save_dir, save_best, start_time):
         print('Saving current best: {} ...'.format('model_best.pth'))
 
 def loadData(v, data):
-    v.data.resize_(data.size()).copy_(data)
+    with torch.no_grad():
+        v.data.resize_(data.size()).copy_(data)

@@ -50,7 +50,7 @@ if(not os.path.exists(os.path.join(args.save_dir, start_time))):
 random.seed(args.manual_seed)
 np.random.seed(args.manual_seed)
 torch.manual_seed(args.manual_seed)
-cudnn.benchmark = True
+cudnn.benchmark = False
 
 
 if(torch.cuda.is_available() and args.cuda):
@@ -93,8 +93,8 @@ criterion = CTCLoss()
 
 global image, text, length
 image = torch.FloatTensor(args.batch_size, 1, 48, 300)
-text = torch.IntTensor(args.batch_size * 5)
-length = torch.IntTensor(args.batch_size)
+text = torch.LongTensor(args.batch_size * 10)
+length = torch.LongTensor(args.batch_size)
 
 if(torch.cuda.is_available() and args.cuda):
     model = model.cuda()
@@ -111,16 +111,17 @@ def train(data_loader):
         batch_size = cpu_images.size(0)
         util.loadData(image, cpu_images)
         t, l = converter.encode(cpu_texts)
-        
         util.loadData(text, t)
         util.loadData(length, l)
         output = model(image)
-        output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
+        output_size = Variable(torch.LongTensor([output.size(0)] * batch_size))
         loss = criterion(output, text, output_size, length)/batch_size
-        print('loss ne: ', loss)
-        model.zero_grad()
+        optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        clipping_value = 1.0
+        torch.nn.utils.clip_grad_norm_(model.parameters(), clipping_value)
+        if not (torch.isnan(loss) or torch.isinf(loss)):
+            optimizer.step()
         total_loss+=loss.item()
         if idx%args.display==0 and idx!=0 :
             print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
@@ -132,20 +133,21 @@ def evaluate(data_loader):
     accBF = 0.0
     accBC = 0.0
     with torch.no_grad():
-        for idx, (image, target) in enumerate(data_loader):
-            batch_size = image.size(0)
-            image = image.cuda()
-            label, target_size = converter.encode(target)
+        for idx, (cpu_images, cpu_texts) in enumerate(data_loader):
+            batch_size = cpu_images.size(0)
+            util.loadData(image, cpu_images)
+            t, l = converter.encode(cpu_texts)
+            util.loadData(text, t)
+            util.loadData(length, l)
             output = model(image)
-            output = output.log_softmax(2).detach().requires_grad_()
-            output_size = Variable(torch.IntTensor([output.size(0)] * batch_size))
-            loss = criterion(output, label, output_size, target_size)
+            output_size = Variable(torch.LongTensor([output.size(0)] * batch_size))
+            loss = criterion(output, text, output_size, length)/batch_size
             total_loss+=loss
             _, output = output.max(2)
             output = output.transpose(1, 0).contiguous().view(-1)
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
-            accBF += metric.by_field(sim_preds, target)
-            accBC += metric.by_char(sim_preds, target)
+            accBF += metric.by_field(sim_preds, cpu_texts)
+            accBC += metric.by_char(sim_preds, cpu_texts)
         total_loss /=len(data_loader)
         return total_loss, accBF/len(data_loader), accBC/len(data_loader)
 
@@ -174,3 +176,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
