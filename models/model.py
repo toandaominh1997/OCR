@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self, num_classes, fixed_height = 48, net='efficientnet'):
         super(Model, self).__init__()
         self.encoder = Encoder(net = net)
-        self.decoder = Decoder(input_dim=int(640), num_class=num_classes)
+        self.decoder = Decoder(input_dim=int(fixed_height * 288 / 8), num_class=num_classes)
         self.crnn = nn.Sequential(
             self.encoder,
             self.decoder

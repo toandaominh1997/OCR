@@ -16,7 +16,6 @@ from dataset import dataset
 from dataset import aug
 
 from models import model
-from models.dcrnn import Model
 
 from util import util
 from util import convert
@@ -84,7 +83,7 @@ args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
 model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
-model = Model(n_classes=args.num_class, fixed_height=args.height)
+
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
 if args.resume is not None:
