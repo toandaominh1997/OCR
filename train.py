@@ -83,10 +83,6 @@ args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
 model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
-<<<<<<< HEAD
-
-=======
->>>>>>> 48d05be04b537f893ec9c14dc26eb0c1883369ff
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
 if args.resume is not None:
