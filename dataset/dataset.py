@@ -40,7 +40,7 @@ class ocrDataset(Dataset):
             typefile = lab.split('.')[-1]
             list_path, list_target = self.read_typefile(os.path.join(root, lab), typefile)
         
-        list_path, _, list_target, _ = train_test_split(list_path, list_target, test_size=0.999, random_state=42)
+        # list_path, _, list_target, _ = train_test_split(list_path, list_target, test_size=0.999, random_state=42)
         return list_path, list_target
     def __len__(self):
         return len(self.path)

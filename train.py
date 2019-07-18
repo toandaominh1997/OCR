@@ -16,6 +16,7 @@ from dataset import dataset
 from dataset import aug
 
 from models import model
+from models.dcrnn import Model
 
 from util import util
 from util import convert
@@ -41,6 +42,7 @@ parser.add_argument('--display', type=int, default=10000, help='display iteratio
 parser.add_argument('--resume', default=None, help="path to pretrained model (to continue training)")
 parser.add_argument('--save_dir', default='saved', help='Where to store samples and models')
 parser.add_argument('--manual_seed', type=int, default=1234, help='reproduce experiemnt')
+parser.add_argument('--net', default='densenet', help='Choose model in training')
 
 args = parser.parse_args()
 
@@ -81,7 +83,8 @@ else:
 args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
-model = model.Model(num_classes=args.num_class, fixed_height=args.height)
+model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
+model = Model(n_classes=args.num_class, fixed_height=args.height)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
 if args.resume is not None:
