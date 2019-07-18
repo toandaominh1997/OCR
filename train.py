@@ -94,7 +94,7 @@ if args.resume is not None:
 criterion = CTCLoss()
 
 global image, text, length
-image = torch.FloatTensor(args.batch_size, 1, 48, 300)
+image = torch.FloatTensor(args.batch_size, 1, 48, 500)
 text = torch.LongTensor(args.batch_size * 10)
 length = torch.LongTensor(args.batch_size)
 

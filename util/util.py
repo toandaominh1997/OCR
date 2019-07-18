@@ -83,4 +83,4 @@ def save_checkpoint(args, epoch, model, save_dir, save_best, start_time):
 
 def loadData(v, data):
     with torch.no_grad():
-        v.data.resize_(data.size()).copy_(data)
+        v.resize_(data.size()).copy_(data)
