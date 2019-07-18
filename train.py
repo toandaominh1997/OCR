@@ -11,6 +11,7 @@ from torch.autograd import Variable
 from torch.nn import CTCLoss
 import time
 import datetime
+from tqdm import tqdm
 
 from dataset import dataset
 from dataset import aug
@@ -108,6 +109,7 @@ length = Variable(length)
 def train(data_loader):
     total_loss=0
     model.train()
+    data_loader = tqdm(data_loader)
     for idx, (cpu_images, cpu_texts) in enumerate(data_loader):
         batch_size = cpu_images.size(0)
         util.loadData(image, cpu_images)
