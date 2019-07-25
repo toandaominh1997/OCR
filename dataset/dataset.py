@@ -7,8 +7,9 @@ import torch
 from sklearn.model_selection import train_test_split
 
 class ocrDataset(Dataset):
-    def __init__(self, args, root, label, train, transform=None, target_transform=None):
-        (self.path, self.target) = self.read_data(args, root, label, train)
+    def __init__(self, args, root, label, training, transform=None, target_transform=None):
+        self.training=training
+        (self.path, self.target) = self.read_data(args, root, label)
         self.root = root
         self.label = label
         self.transform = transform
@@ -32,14 +33,28 @@ class ocrDataset(Dataset):
                 list_path.append(path)
                 list_target.append(target)
         return list_path, list_target           
-    def read_data(self, args, root, label, train):
+    def read_data(self, args, root, label):
         labels = label.split('+')
         list_path = list()
         list_target = list()
         for lab in labels:
             typefile = lab.split('.')[-1]
             list_path, list_target = self.read_typefile(os.path.join(root, lab), typefile)
-        
+        if self.training==False:
+            list_paths = list()
+            list_targets = list()
+            for path, target in zip(list_path, list_target):
+                check=False
+                for tar in target:
+                    if tar not in args.alphabet:
+                        check=True
+                if check==False:
+                    list_paths.append(path)
+                    list_targets.append(target)
+            list_path=list_paths
+            list_target=list_targets
+            del list_paths
+            del list_targets                       
         # list_path, _, list_target, _ = train_test_split(list_path, list_target, test_size=0.999, random_state=42)
         return list_path, list_target
     def __len__(self):

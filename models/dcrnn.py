@@ -175,7 +175,7 @@ class Model(nn.Module):
             self.encoder,
             self.decoder
         )
-
+        self.logsoftmax = nn.LogSoftmax(dim=2)
         for p in self.crnn.parameters():
             if isinstance(p, nn.Conv2d):
                 nn.init.kaiming_normal_(p.weight)
@@ -188,7 +188,7 @@ class Model(nn.Module):
 
     def forward(self, input):
         output = self.crnn(input)
-
+        output = self.logsoftmax(output)
         return output
 
 

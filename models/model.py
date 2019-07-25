@@ -14,7 +14,7 @@ class Model(nn.Module):
             self.encoder,
             self.decoder
         )
-        self.log_softmax = nn.Softmax(dim=2)
+        self.log_softmax = nn.LogSoftmax(dim=2)
 
     def forward(self, input):
         output = self.crnn(input)

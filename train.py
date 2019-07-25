@@ -1,5 +1,4 @@
 import subprocess
-# subprocess.run('pip install -r requirements.txt')
 import os
 import argparse
 import random
@@ -17,6 +16,7 @@ from dataset import dataset
 from dataset import aug
 
 from models import model
+from models import dcrnn
 
 from util import util
 from util import convert
@@ -29,7 +29,7 @@ parser.add_argument('--train_label', default='train_final_combine_normalize_with
 parser.add_argument('--valid_label', default= 'val_final_combine_normalize_withspace_v2.txt', help='path to dataset')
 parser.add_argument('--test_label', default=None, help='path to dataset')
 parser.add_argument('--num_worker', type=int, help='number of data loading workers', default=10)
-parser.add_argument('--batch_size', type=int, default=32, help='input batch size')
+parser.add_argument('--batch_size', type=int, default=24, help='input batch size')
 parser.add_argument('--hidden_size', type=int, default=256, help='input hidden size')
 parser.add_argument('--height', type=int, default=48, help='the height of the input image to network')
 parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
@@ -40,7 +40,7 @@ parser.add_argument('--cuda', default=True, help='enables cuda')
 parser.add_argument('--num_gpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--display', type=int, default=10000, help='display iteration each epoch')
 parser.add_argument('--resume', default=None, help="path to pretrained model (to continue training)")
-parser.add_argument('--save_dir', default='saved', help='Where to store samples and models')
+parser.add_argument('--save_dir', default='/opt/ml/model/', help='Where to store samples and models')
 parser.add_argument('--manual_seed', type=int, default=1234, help='reproduce experiemnt')
 parser.add_argument('--net', default='densenet', help='Choose model in training')
 
@@ -49,21 +49,22 @@ args = parser.parse_args()
 start_time = datetime.datetime.now().strftime('%m-%d_%H%M%S')
 if(not os.path.exists(os.path.join(args.save_dir, start_time))):
     os.makedirs(os.path.join(args.save_dir, start_time))
+
 random.seed(args.manual_seed)
 np.random.seed(args.manual_seed)
 torch.manual_seed(args.manual_seed)
 cudnn.benchmark = False
 
-
 if(torch.cuda.is_available() and args.cuda):
     torch.cuda.set_device(util.get_gpu())
 if(torch.cuda.is_available() and not args.cuda):
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+
 train_transform = aug.train_transforms(height=args.height)
 test_transform = aug.test_transforms(height=args.height)
 
-train_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.train_label, train=True, transform=train_transform)
-valid_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.valid_label, train=False, transform=test_transform)
+train_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.train_label, training=True, transform=train_transform)
+valid_dataset = dataset.ocrDataset(args=args, root=args.root, label=args.valid_label, training=False, transform=test_transform)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
 valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=int(args.num_worker), collate_fn=dataset.alignCollate())
@@ -84,6 +85,7 @@ args.num_class = len(args.alphabet) + 1
 converter = convert.strLabelConverter(args.alphabet)
 
 model = model.Model(num_classes=args.num_class, fixed_height=args.height, net=args.net)
+model = dcrnn.Model(n_classes=args.num_class, fixed_height=args.height)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
 if args.resume is not None:
@@ -94,17 +96,19 @@ if args.resume is not None:
 criterion = CTCLoss()
 
 global image, text, length
-image = torch.FloatTensor(args.batch_size, 1, 48, 500)
+image = torch.FloatTensor(args.batch_size, 1, args.height, 500)
 text = torch.LongTensor(args.batch_size * 10)
 length = torch.LongTensor(args.batch_size)
 
 if(torch.cuda.is_available() and args.cuda):
     model = model.cuda()
     image = image.cuda()
+    text = text.cuda()
     criterion = criterion.cuda()
+
 image = Variable(image)
 text = Variable(text)
-length = Variable(length)    
+length = Variable(length)
 
 def train(data_loader):
     total_loss=0
@@ -126,7 +130,7 @@ def train(data_loader):
         if not (torch.isnan(loss) or torch.isinf(loss)):
             optimizer.step()
         total_loss+=loss.item()
-        if idx%args.display==0 and idx!=0 :
+        if idx%1000==0 and idx!=0 :
             print('{} index: {}/{}(~{}%) loss: {}'.format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), idx, len(data_loader), round(idx*100/len(data_loader)), total_loss/idx))
     return total_loss/len(data_loader)
 
@@ -151,9 +155,8 @@ def evaluate(data_loader):
             sim_preds = converter.decode(output.data, output_size.data, raw=False)
             accBF += metric.by_field(sim_preds, cpu_texts)
             accBC += metric.by_char(sim_preds, cpu_texts)
-        total_loss /=len(data_loader)
+        total_loss /= len(data_loader)
         return total_loss, accBF/len(data_loader), accBC/len(data_loader)
-
 
 def main():
     by_field_best = 0.0
@@ -179,4 +182,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

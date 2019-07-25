@@ -15,4 +15,5 @@ class Encoder(nn.Module):
 
     def forward(self, input):
         out = self.model(input)
+        print('output: ', out.size())
         return out
